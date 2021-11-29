@@ -1,54 +1,41 @@
 package io.github.devstita.snapscroll;
 
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.app.AppCompatDelegate;
-
-import android.content.Context;
-import android.graphics.Color;
-import android.hardware.Sensor;
-import android.hardware.SensorEvent;
-import android.hardware.SensorEventListener;
-import android.hardware.SensorManager;
+import android.annotation.SuppressLint;
 import android.os.Bundle;
-import android.text.Layout;
-import android.util.Log;
-import android.view.LayoutInflater;
+import android.os.Handler;
+import android.view.Display;
+import android.view.MotionEvent;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ListView;
 import android.widget.SimpleAdapter;
-import android.widget.TextView;
-import android.widget.Toast;
-import android.widget.TwoLineListItem;
+
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Map;
 
 public class TestActivity extends AppCompatActivity {
+    float startX, startY;
+    Handler uiHandler;
+
     Button scrollUpButton, scrollDownButton;
     ListView listView;
-    TextView xTextView, yTextView, zTextView;
-
     SimpleAdapter adapter;
 
-    private SensorManager sensorManager = null;
-    private Sensor gyroSensor = null;
-    private SensorEventListener gyroSensorEventListener = null;
-
+    @SuppressLint("ClickableViewAccessibility")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_test);
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
 
+        uiHandler = new Handler();
+
         scrollUpButton = findViewById(R.id.test_scroll_up_button);
         scrollDownButton = findViewById(R.id.test_scroll_down_button);
         listView = findViewById(R.id.test_list_view);
-        xTextView = findViewById(R.id.test_x_text_view);
-        yTextView = findViewById(R.id.test_y_text_view);
-        zTextView = findViewById(R.id.test_z_text_view);
 
         ArrayList<HashMap<String, String>> data = new ArrayList<>();
         for (int i = 0; i < 100; i++) {
@@ -64,61 +51,66 @@ public class TestActivity extends AppCompatActivity {
                 new String[]{"key", "value"},
                 new int[]{android.R.id.text1, android.R.id.text2});
 
-        sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-        gyroSensor = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
-        gyroSensorEventListener = new SensorEventListener() {
-            @Override
-            public void onSensorChanged(SensorEvent event) {
-                double x = event.values[0];
-                double y = event.values[1];
-                double z = event.values[2];
-
-                xTextView.setText(String.valueOf(x));
-                yTextView.setText(String.valueOf(y));
-                zTextView.setText(String.valueOf(z));
-            }
-
-            @Override
-            public void onAccuracyChanged(Sensor sensor, int i) {
-
-            }
-        };
-
         scrollUpButton.setOnClickListener((view) -> {
-            scrollTo(0);
-        });
-
-        scrollDownButton.setOnClickListener((view) -> {
             scrollTo(1);
         });
 
+        scrollDownButton.setOnClickListener((view) -> {
+            scrollTo(-1);
+        });
+
         listView.setAdapter(adapter);
-        sensorManager.registerListener(gyroSensorEventListener, gyroSensor, SensorManager.SENSOR_DELAY_UI);
+        listView.setOnTouchListener((view, event) -> {
+            switch (event.getAction()) {
+                case MotionEvent.ACTION_DOWN:
+                    Utils.debug("DOWN");
+                    startX = event.getX();
+                    startY = event.getY();
+                    break;
 
-        new Thread(() -> {
-            try {
-                Thread.sleep(1500);
-                scrollTo(1);
-            } catch (InterruptedException e) {
-                Log.d("Debugging", "Sleep Error");
+                case MotionEvent.ACTION_UP:
+                    Utils.debug("UP");
+                    float endX = event.getX(), endY = event.getY();
+                    float deltaX = endX - startX, deltaY = endY - startY;
+                    int direction = (int) Math.signum(deltaY);
+
+                    Utils.debug("DeltaX: " + deltaX + ", DeltaY: " + deltaY + ", Direction: " + direction);
+
+                    if (Math.abs(deltaX) > Utils.DISPLAY_WIDTH * 0.4) {
+                        Utils.debug("Fast Scroll !");
+
+                        new Thread(() -> {
+                            uiHandler.post(() -> listView.setEnabled(false));
+
+                            try {
+                                Thread.sleep(200);
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+
+                            uiHandler.post(() -> {
+                                Utils.debug("Stop Scroll !");
+                                listView.scrollBy(0, 0);
+                            });
+                        }).start();
+                    }
+
+                    break;
             }
-        }).start();
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        sensorManager.unregisterListener(gyroSensorEventListener);
+            return false;
+        });
     }
 
     private void scrollTo(int w) {
         switch (w) {
-            case 0: // Top
-                Log.d("Debugging", "Scroll to Top !");
+            case 1: // Top
+                Utils.debug("Scroll to Top !");
+                listView.scrollBy(0, 0);
                 listView.smoothScrollToPosition(0);
                 break;
-            case 1: // Bottom
-                Log.d("Debugging", "Scroll to Bottom !");
+            case -1: // Bottom
+                Utils.debug("Scroll to Bottom !");
+                listView.scrollBy(0, 0);
                 listView.smoothScrollToPosition(adapter.getCount() - 1);
                 break;
             default:
