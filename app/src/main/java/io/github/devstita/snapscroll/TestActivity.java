@@ -15,6 +15,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.ListView;
 import android.widget.SimpleAdapter;
 import android.widget.TextView;
@@ -26,6 +27,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class TestActivity extends AppCompatActivity {
+    Button scrollUpButton, scrollDownButton;
     ListView listView;
     TextView xTextView, yTextView, zTextView;
 
@@ -41,6 +43,8 @@ public class TestActivity extends AppCompatActivity {
         setContentView(R.layout.activity_test);
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
 
+        scrollUpButton = findViewById(R.id.test_scroll_up_button);
+        scrollDownButton = findViewById(R.id.test_scroll_down_button);
         listView = findViewById(R.id.test_list_view);
         xTextView = findViewById(R.id.test_x_text_view);
         yTextView = findViewById(R.id.test_y_text_view);
@@ -80,6 +84,14 @@ public class TestActivity extends AppCompatActivity {
             }
         };
 
+        scrollUpButton.setOnClickListener((view) -> {
+            scrollTo(0);
+        });
+
+        scrollDownButton.setOnClickListener((view) -> {
+            scrollTo(1);
+        });
+
         listView.setAdapter(adapter);
         sensorManager.registerListener(gyroSensorEventListener, gyroSensor, SensorManager.SENSOR_DELAY_UI);
 
@@ -91,6 +103,12 @@ public class TestActivity extends AppCompatActivity {
                 Log.d("Debugging", "Sleep Error");
             }
         }).start();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        sensorManager.unregisterListener(gyroSensorEventListener);
     }
 
     private void scrollTo(int w) {
